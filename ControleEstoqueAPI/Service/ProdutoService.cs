@@ -1,16 +1,20 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using ControleEstoqueAPI.Context;
 using ControleEstoqueAPI.Models;
+using ControleEstoqueAPI.Models.Dtos;
 
 namespace ControleEstoqueAPI.Service
 {
     interface IProdutoService
     {
-        public List<Produto> FindAll();
-        public Produto FindById(int IdProduto);
-        public Produto Update(int IdProduto, Produto produto);
-        public Produto Delete(int IdProduto, Produto produto);
+        public IEnumerable<ProdutoDto> FindAll();
+        public IEnumerable<ProdutoDto> FindById(int IdProduto);
+        public bool Insert(Produto produto);
+        public bool Update(Produto produto);
+        public bool Delete(int IdProduto);
+        public Produto Exists(int Id);
     }
 
     public class ProdutoService : IProdutoService
@@ -21,25 +25,97 @@ namespace ControleEstoqueAPI.Service
             _estoqueContext = estoqueContext;
         }
 
-        public Produto Delete(int IdProduto, Produto produto)
+        public IEnumerable<ProdutoDto> FindAll()
         {
-            throw new System.NotImplementedException();
+            var produtosRetornadosDto =  from  produto in _estoqueContext.Produtos 
+                                            join categoria in _estoqueContext.Categorias on produto.CategoriaId equals categoria.Id
+                                      select new ProdutoDto()
+                                      {
+                                          Id = produto.Id,
+                                          Nome = produto.Nome,
+                                          Marca = produto.Marca,
+                                          Preco = produto.Preco,
+                                          Quantidade = produto.Quantidade,
+                                          idCategoria  = produto.CategoriaId,
+                                          NomeCategoria = categoria.Nome
+                                      };     
+            return produtosRetornadosDto;
         }
 
-        public List<Produto> FindAll()
+        public IEnumerable<ProdutoDto> FindById(int IdProduto)
         {
-            var produtosRetornados = _estoqueContext.Produtos.ToList();
-            return produtosRetornados;
+
+            var produtoRetornado = from produto in _estoqueContext.Produtos
+                                   join categoria in _estoqueContext.Categorias on produto.CategoriaId equals categoria.Id
+                                   where produto.Id  == IdProduto
+                                   select new ProdutoDto()
+                                   {
+                                       Id = produto.Id,
+                                       Nome = produto.Nome,
+                                       Marca = produto.Marca,
+                                       Preco = produto.Preco,
+                                       idCategoria = produto.CategoriaId,
+                                       NomeCategoria = categoria.Nome
+                                   };
+
+            return produtoRetornado;
         }
 
-        public Produto FindById(int IdProduto)
+        public bool Insert(Produto produto)
         {
-            throw new System.NotImplementedException();
+            try
+            {
+                _estoqueContext.Produtos.Add(produto);
+                _estoqueContext.SaveChanges();
+                return true;
+            }
+            catch 
+            {
+                return false;       
+            }
+            
         }
 
-        public Produto Update(int IdProduto, Produto produto)
+        public bool Update(Produto produto)
         {
-            throw new System.NotImplementedException();
+            int produtoId = Convert.ToInt32(produto.Id);
+            try
+            {
+                var produtoRetornado = Exists(produtoId);
+                if(produtoRetornado != null)
+                {
+                    _estoqueContext.Entry(produtoRetornado).CurrentValues.SetValues(produto);
+                    _estoqueContext.SaveChanges();
+                    return true;
+                }
+                  
+                return false;
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+        }
+
+        public bool Delete(int IdProduto)
+        {
+            var produtoRetornado = Exists(IdProduto);
+            if (produtoRetornado != null)
+            {
+                _estoqueContext.Produtos.Remove(produtoRetornado);
+                _estoqueContext.SaveChanges();
+                return true;
+            }
+            return false;
+        }
+
+        public Produto Exists(int Id)
+        {
+            var produtoRetornado = _estoqueContext.Produtos.SingleOrDefault(p => p.Id.Equals(Id));
+            if(produtoRetornado != null)        
+                return produtoRetornado;
+            return null;
         }
     }
 
